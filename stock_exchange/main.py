@@ -1,8 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from sqlalchemy import create_engine, Column, Integer, String, Float, Date
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from databases import Database
+from fastapi.templating import Jinja2Templates
 import requests
 
 app = FastAPI()
@@ -41,6 +43,9 @@ Base.metadata.create_all(bind=engine)
 # API key for Alpha Vantage (replace with your actual API key)
 API_KEY = "MOC8XDXRZBPN91B4"
 BASE_URL = "https://www.alphavantage.co/query"
+
+# Initialize Jinja2 templates
+templates = Jinja2Templates(directory="templates")
 
 @app.on_event("startup")
 async def startup():
@@ -84,3 +89,28 @@ async def get_stock_data(symbol: str):
             session.close()
 
     return {"message": f"Stock data for {symbol} stored successfully"}
+
+@app.get("/stocks/data/{symbol}", response_class=HTMLResponse)
+async def get_stored_stock_data(request: Request, symbol: str):
+    session = SessionLocal()
+    try:
+        stock_data = session.query(StockData).filter(StockData.symbol == symbol).all()
+        if not stock_data:
+            raise HTTPException(status_code=404, detail="Stock data not found")
+
+        # Prepare data for the chart
+        dates = [data.date.strftime("%Y-%m-%d") for data in stock_data]
+        close_prices = [data.close_price for data in stock_data]
+
+        # Debug logs
+        print("Retrieved Dates: ", dates)
+        print("Retrieved Close Prices: ", close_prices)
+
+        return templates.TemplateResponse("stock_data.html", {
+            "request": request,
+            "symbol": symbol,
+            "dates": dates,
+            "close_prices": close_prices
+        })
+    finally:
+        session.close()
