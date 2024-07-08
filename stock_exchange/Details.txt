@@ -1,0 +1,10 @@
+create a fastapi application with a a postgres backend which stores some data and creates a dashboard/chart from the stored data. 
+as for me i should access a stock exchange api to fetch details of stocks.
+
+The steps we need to follow are:
+1. Set up your FastAPI application. (done)
+2. Connect to a PostgreSQL database. (done)
+3. Access a stock exchange API to fetch stock details. (done)
+4. Store the fetched data in the PostgreSQL database. (done)
+5. Create endpoints to retrieve the data and display it on a dashboard.
+6. Generate charts from the stored data.
