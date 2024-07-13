@@ -4,7 +4,7 @@
 API_URL="http://localhost:8000/api/stock_data?symbol=AAPL"
 
 # Directory to save the response
-OUTPUT_DIR="/home/your_username/stock_data"
+OUTPUT_DIR="/mnt/d/project/templates/stock_data"
 
 # Create the output directory if it doesn't exist
 mkdir -p $OUTPUT_DIR
