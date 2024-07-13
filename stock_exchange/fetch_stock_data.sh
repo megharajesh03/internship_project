@@ -1,16 +1,11 @@
 #!/bin/bash
 
-# API URL
-API_URL="http://localhost:8000/api/stock_data?symbol=AAPL"
+# Define the API endpoint
+API_ENDPOINT="http://localhost:8000/stocks/AAPL"
 
-# Directory to save the response
-OUTPUT_DIR="/mnt/d/project/templates/stock_data"
+# Log file location
+LOG_FILE="/mnt/d/project/fetch_stock_data.log"
 
-# Create the output directory if it doesn't exist
-mkdir -p $OUTPUT_DIR
-
-# Filename with timestamp
-OUTPUT_FILE="$OUTPUT_DIR/stock_data_$(date +'%Y%m%d%H%M').json"
-
-# Make the API call and save the response
-curl -s $API_URL -o $OUTPUT_FILE
+# Call the API endpoint and log the response
+response=$(curl -s -X GET "$API_ENDPOINT")
+echo "$(date): $response" >> "$LOG_FILE"
