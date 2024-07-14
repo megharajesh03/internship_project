@@ -1,11 +1,12 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from sqlalchemy import create_engine, Column, Integer, String, Float, Date
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from databases import Database
 from fastapi.templating import Jinja2Templates
 import requests
+from datetime import datetime
 
 app = FastAPI()
 
@@ -30,12 +31,13 @@ class StockData(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     symbol = Column(String, index=True)
-    date = Column(Date)
+    date = Column(DateTime)
     open_price = Column(Float)
     high_price = Column(Float)
     low_price = Column(Float)
     close_price = Column(Float)
     volume = Column(Integer)
+    timestamp = Column(DateTime)
 
 # Create the database tables based on the defined models
 Base.metadata.create_all(bind=engine)
@@ -58,32 +60,42 @@ async def shutdown():
 @app.get("/stocks/{symbol}")
 async def get_stock_data(symbol: str):
     params = {
-        "function": "TIME_SERIES_DAILY",
+        "function": "TIME_SERIES_INTRADAY",
         "symbol": symbol,
+        "interval": "5min", #### the chosen interval
         "apikey": API_KEY
     }
     response = requests.get(BASE_URL, params=params)
     data = response.json()
 
-    # Check if the API responded with an error
     if "Error Message" in data:
         raise HTTPException(status_code=404, detail="Stock symbol not found")
 
-    # Parse and store data in the database
+    if "Time Series (5min)" not in data:  ### the chosen interval
+        raise HTTPException(status_code=500, detail="Unexpected response from API")
+
     async with database.transaction():
         session = SessionLocal()
         try:
-            for date, values in data["Time Series (Daily)"].items():
-                db_data = StockData(
-                    symbol=symbol,
-                    date=date,
-                    open_price=float(values["1. open"]),
-                    high_price=float(values["2. high"]),
-                    low_price=float(values["3. low"]),
-                    close_price=float(values["4. close"]),
-                    volume=int(values["5. volume"])
-                )
-                session.add(db_data)
+            for date_str, values in data["Time Series (5min)"].items():  ### the chosen interval
+                date = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+                existing_data = session.query(StockData).filter(
+                    StockData.symbol == symbol,
+                    StockData.date == date
+                ).first()
+
+                if not existing_data:
+                    db_data = StockData(
+                        symbol=symbol,
+                        date=date,
+                        open_price=float(values["1. open"]),
+                        high_price=float(values["2. high"]),
+                        low_price=float(values["3. low"]),
+                        close_price=float(values["4. close"]),
+                        volume=int(values["5. volume"]),
+                        timestamp=date  # timestamp from the API
+                    )
+                    session.add(db_data)
             session.commit()
         finally:
             session.close()
@@ -99,7 +111,7 @@ async def get_stored_stock_data(request: Request, symbol: str):
             raise HTTPException(status_code=404, detail="Stock data not found")
 
         # Prepare data for the chart
-        dates = [data.date.strftime("%Y-%m-%d") for data in stock_data]
+        dates = [data.date.isoformat() for data in stock_data]  # ISO format for timestamp
         close_prices = [data.close_price for data in stock_data]
 
         # Debug logs
