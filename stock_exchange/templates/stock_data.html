@@ -11,16 +11,20 @@
     <h1>Stock Data for {{ symbol }}</h1>
     <canvas id="stockChart"></canvas>
     <script>
-        const ctx = document.getElementById('stockChart').getContext('2d');
-        const chart = new Chart(ctx, {
+        // Debug logs to check the data being passed to Chart.js
+        console.log("Dates:", {{ dates | tojson | safe }});
+        console.log("Close Prices:", {{ close_prices | tojson | safe }});
+
+        new Chart(document.getElementById('stockChart'), {
             type: 'line',
             data: {
-                labels: {{ dates | safe }},
+                labels: {{ dates | tojson | safe }},
                 datasets: [{
                     label: 'Close Price',
-                    data: {{ close_prices | safe }},
+                    data: {{ close_prices | tojson | safe }},
                     borderColor: 'rgba(75, 192, 192, 1)',
-                    borderWidth: 1
+                    borderWidth: 1,
+                    fill: false
                 }]
             },
             options: {
@@ -28,7 +32,38 @@
                     x: {
                         type: 'time',
                         time: {
-                            unit: 'day'
+                            unit: 'minute',
+                            tooltipFormat: 'yyyy-MM-dd HH:mm:ss',
+                            displayFormats: {
+                                minute: 'MMM d, HH:mm'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Close Price'
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed.y !== null) {
+                                    label += new Intl.NumberFormat('en-US', {
+                                        style: 'currency',
+                                        currency: 'USD'
+                                    }).format(context.parsed.y);
+                                }
+                                return label;
+                            }
                         }
                     }
                 }
